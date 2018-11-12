@@ -40,6 +40,20 @@ struct Activity {
     }
 };
 
+void writeOutput(int maxValue, vector<int> activityList, string outFile) {
+    ofstream file(outFile, ios::out);
+    if (file.is_open()) {
+        file << maxValue << "\n";
+        for (int i = 0; i < activityList.size(); i++) {
+            file << activityList[i];
+            if (i < activityList.size() - 1) {
+                file << " ";
+            }
+        }
+        file.close();
+    }
+}
+
 /**
  * Find the latest job before the current job that doesn't have conflicting times
  * with the current job
@@ -50,17 +64,14 @@ struct Activity {
  * 
  */
 int findNextBest(Activity activities[], int actNum) {
-    cout << "\t\tFinding best value job for " << activities[actNum].to_string() << endl;
     int current = actNum;
     actNum--;
     while (actNum >= 0) {
         if (activities[actNum].end <= activities[current].start) {
-            cout << "\t\tFound best value: " << activities[actNum].to_string() << endl;
             return actNum;
         } 
         actNum--;
     }
-    cout << "\t\tCouldn't find another." << endl;
     return -1;
 }
 
@@ -69,87 +80,58 @@ int findNextBest(Activity activities[], int actNum) {
  * Strategy: Check for the max value we can get from activities 0..i as the max value with current activity
  * Check for the max value we can get from activities 0..i-1 as the max value without the current activity
  * maxValues[i] will represent the max value we can get with the interval activity 0..i
+ * idList vector holds the sequence of id numbers to get maxValues[i]
  * 
  * Complexity: O(n^2)
  * Calls fn: findNextBest w/ complexity O(n) n times 
  */
-int findMaxValueDP(Activity activities[], int numActivities) {
+int findMaxValueDP(Activity activities[], int numActivities, string outFile) {
+
+    if (numActivities < 1) {
+        vector<int> emptyList(0);
+        writeOutput(0, emptyList, outFile);
+        return -1;
+    }
     
     // Need the extra value because our base case takes up a slot
     int maxValSize = numActivities + 1;
-    int maxValues[maxValSize];
-    string idList[maxValSize];
+    int maxValues[numActivities];
+    vector< vector<int> > idList(numActivities);
     // Set base case
     maxValues[0] = activities[0].value;
-    idList[0] = to_string(activities[0].id);
+    idList[0].push_back(activities[0].id);
     // Find the max value from 0..i as the with current value (including this new activity)
     // Find the max value from 0..i-1 as the without current value (if we were not to include the current activity)
     // Set maxValues[i] to max of the two values
-    for (int i = 1; i < maxValSize; i++) {
+    for (int i = 1; i < numActivities; i++) {
         int valueWithCurrent = activities[i].value;
-        string idListWithCurrent = to_string(activities[i].id);
+        vector<int> idListWithCurrent;
+
+        idListWithCurrent.push_back(activities[i].id);
         int indexOfNextBestJob = findNextBest(activities, i);
+
         if (indexOfNextBestJob != -1) {
             valueWithCurrent += maxValues[indexOfNextBestJob];
-            idListWithCurrent += " " + idList[indexOfNextBestJob];
+            for (int j = 0; j < idList[indexOfNextBestJob].size(); j++) {
+                idListWithCurrent.push_back(idList[indexOfNextBestJob][j]);
+            }
         }
 
         int valueWithoutCurrent = maxValues[i - 1];
-        cout << "Value with: " << valueWithCurrent << endl;
-        cout << "Value w/out: " << valueWithoutCurrent << endl;
         idList[i] = idList[i - 1];
         if (valueWithCurrent > valueWithoutCurrent) {
             idList[i] = idListWithCurrent;
         }
         maxValues[i] = max(valueWithCurrent, valueWithoutCurrent);
     }
-    cout << "DP matrix" << endl;
-    for (int i = 0; i < maxValSize; i++) {
-        cout << maxValues[i] << " ";
-    }
-    cout << endl;
-
-    cout << "ID LIST\n";
-    for (int i = 0; i < numActivities; i++) {
-        cout << idList[i] << endl;
-    }
-
-    string sequence = idList[maxValSize - 1];
-    cout << "\nSequence\n" << sequence << endl;
-
-    // for (int i = 0; i < sequence.size(); i++) {
-
-    // }
-
-    return maxValues[maxValSize - 1];
-}
-
-/**
- * Recursively find the max value activity of the vector that doesn't conflict
- * 
- * Worst case: If findNextBest returns the index of the value before, we will calculate it 2 times
- * If this happens all n times we get O(n*2^n), which is horrible...
- * 
- * Solution: store in array to access it in theta(1) after it is already computed
- * 
- * Complexity: O(n*2^n) -> O(n^2) using findMaxValueDP ^^
- */
-int findMaxValue(Activity activities[], int actNum) {
-    // base case: there are no jobs that occur before current
-    if (actNum == 0) {
-        return activities[actNum].value;
-    }
-
-    int valueWithCurrent = activities[actNum].value;
-    int indexOfNextBestJob = findNextBest(activities, actNum);
-    if (indexOfNextBestJob != -1) {
-        valueWithCurrent += findMaxValue(activities, indexOfNextBestJob);
-    }
     
-    int valueWithoutCurrent = findMaxValue(activities, actNum - 1);
-    cout << "[Value w/out Current]: " << valueWithoutCurrent << endl;
-    cout << "\t[Value w/ Current]: " << valueWithCurrent << endl;
-    return max(valueWithCurrent, valueWithCurrent);
+    vector<int> activityList(idList[numActivities - 1]);
+    // sort the sequence in increasing order
+    sort(activityList.begin(), activityList.end());
+
+    writeOutput(maxValues[numActivities - 1], activityList, outFile);
+
+    return maxValues[numActivities - 1];
 }
 
 void printActivityChart(Activity activities[], int numActivities) {
@@ -178,13 +160,33 @@ void printActivityChart(Activity activities[], int numActivities) {
     cout << endl;
 }
 
+int getShavedSize(Activity activities[], int numActivities, int interval) {
+    int newSize = numActivities;
+    for (int i = numActivities; i >= 0; i--) {
+        if (activities[i].end > interval) {
+            newSize--;
+        }
+    }
+    return newSize;
+}
+
 int main(int argc, char** argv) {
     // Init values
     Activity* activities;
     fstream file;
-    file.open("input1.txt", ios::in);
+    string filename = "input.txt";
+    string outFile = "output.txt";
+    if (argc > 1) {
+        filename = argv[1];
+    }
+    if (argc > 2) {
+        outFile = argv[2];
+    }
+    file.open(filename, ios::in);
     int numActivities, intervalEnd;
+    // Read input
     if (file.is_open()) {
+        cout << "Output written to " << outFile << endl;
         file >> numActivities >> intervalEnd;
         activities = new Activity[numActivities];
         int id, start, end, value;
@@ -193,20 +195,18 @@ int main(int argc, char** argv) {
             activities[i].set(id, start, end, value);
         }
         file.close();
+
+        // Sort by end time
+        sort(activities, activities + numActivities);
+
+        // Shave off activities outside the interval
+        int newSize = getShavedSize(activities, numActivities, intervalEnd);
+
+        findMaxValueDP(activities, newSize, outFile);
+
+    } else {
+        cout << "Could not find file " << filename << ". Please enter the name of an input file as a parameter." << endl;
     }
-
-    printActivityChart(activities, numActivities);
-
-    // Sort by end time
-    sort(activities, activities + numActivities);
-    cout << "\nSORTED\n";
-
-    printActivityChart(activities, numActivities);
-
-    int maxValueDP = findMaxValueDP(activities, numActivities - 1);
-    cout << "MAX DP: " << maxValueDP << endl;
-
-    
 
     return 0;
 }
