@@ -96,8 +96,7 @@ int findMaxValueDP(Activity activities[], int numActivities, string outFile) {
         return -1;
     }
     
-    // Need the extra value because our base case takes up a slot
-    int maxValSize = numActivities + 1;
+    // Need the extra value because our base case takes up a slot3
     int maxValues[numActivities];
     vector< vector<int> > idList(numActivities);
     // Set base case
@@ -165,7 +164,7 @@ void printActivityChart(Activity activities[], int numActivities) {
 
 int getShavedSize(Activity activities[], int numActivities, int interval) {
     int newSize = numActivities;
-    for (int i = numActivities; i >= 0; i--) {
+    for (int i = numActivities - 1; i >= 0; i--) {
         if (activities[i].end > interval) {
             newSize--;
         }
