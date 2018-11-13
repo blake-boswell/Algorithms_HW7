@@ -2,6 +2,8 @@
 #include <fstream>
 #include <vector>
 #include <cmath>
+#include <sstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -34,14 +36,15 @@ struct Activity {
         return (end < b.end);
     }
     string to_string() {
-        string activity = "("  + std::to_string(value) + 
-            ":: " + std::to_string(start) + " - " + std::to_string(end) + ")";
+        std::ostringstream s;
+        s << "(" << value << ":: " << start << " - " << end << ")";
+        std::string activity(s.str());
         return activity;
     }
 };
 
 void writeOutput(int maxValue, vector<int> activityList, string outFile) {
-    ofstream file(outFile, ios::out);
+    ofstream file(outFile.c_str());
     if (file.is_open()) {
         file << maxValue << "\n";
         for (int i = 0; i < activityList.size(); i++) {
@@ -182,7 +185,7 @@ int main(int argc, char** argv) {
     if (argc > 2) {
         outFile = argv[2];
     }
-    file.open(filename, ios::in);
+    file.open(filename.c_str());
     int numActivities, intervalEnd;
     // Read input
     if (file.is_open()) {
